@@ -1,6 +1,8 @@
 name: .NET Core
 
-on: [push]
+on:
+  label:
+    types: created
 
 jobs:
   build:
