@@ -13,5 +13,9 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: '3.1.100'
+      env:
+        NUGET_AUTH_TOKEN: ${{secrets.NUGET_API_KEY}}
     - name: Build with dotnet
       run: dotnet build --configuration Release
+    - name: Publish to Nuget.org
+      run: dotnet nuget push heic2jpg\nupkg\*.nupkg -s https://api.nuget.org/v3/index.json
