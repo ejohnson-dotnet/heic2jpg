@@ -18,4 +18,4 @@ jobs:
     - name: Build with dotnet
       run: dotnet build --configuration Release
     - name: Publish to Nuget.org
-      run: dotnet nuget push heic2jpg\nupkg\*.nupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json
+      run: dotnet nuget push nupkg\*.nupkg -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json
