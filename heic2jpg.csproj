@@ -6,12 +6,15 @@
 
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>heic2jpg</ToolCommandName>
+    
     <PackageOutputPath>./nupkg</PackageOutputPath>
     <PackageId>heic2jpg</PackageId>
     <Authors>Eric Johnson</Authors>
     <Product>heic2jpg</Product>
     <Description>.NET Core global tool to convert HEIC image files to JPG.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>	
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
