@@ -39,7 +39,6 @@ namespace heic2jpg
                         {
                             //Rename to .JPG file
                             var filename2 = System.IO.Path.ChangeExtension(System.IO.Path.GetFileName(filename), ".jpg");
-                            Console.WriteLine(filename2);
                             await inputFile.RenameAsync(System.IO.Path.ChangeExtension(filename2, ".jpg"));
                             Console.WriteLine($"Renamed '{filename}' to '{filename2}'");
                         }
