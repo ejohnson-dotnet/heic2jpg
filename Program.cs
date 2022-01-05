@@ -70,7 +70,7 @@ namespace heic2jpg
                     foreach (var p in photoProperties.OrderBy(k => k.Key))
                     {
                         //Console.WriteLine($"{p.Key}: {p.Value}");
-                        System.Diagnostics.Trace.WriteLine($"{p.Key}: {(p.Value is Array ? string.Join(",", ((Array)p.Value).Cast<object>()) : p.Value)}");
+                        System.Diagnostics.Trace.WriteLine($"{p.Key}: {(p.Value is Array array ? string.Join(",", array.Cast<object>()) : p.Value)}");
                     }
 
 
@@ -81,7 +81,7 @@ namespace heic2jpg
             catch (Exception ex)
             {
                 Console.WriteLine($"Error converting file '{filename}': {ex.Message}");
-                System.Diagnostics.Trace.WriteLine($"Error converting file '{filename}': {ex.ToString()}");
+                System.Diagnostics.Trace.WriteLine($"Error converting file '{filename}': {ex}");
             }
         }
 
@@ -112,7 +112,7 @@ namespace heic2jpg
         /// A list of all the writable System.Photo.* properties.
         /// Commented out properties are calculated or read-only.
         /// </summary>
-        static string[] SystemPhotoProperties = {
+        static readonly string[] SystemPhotoProperties = {
             //"System.Photo.Aperture",
             "System.Photo.ApertureDenominator",
             "System.Photo.ApertureNumerator",
@@ -204,7 +204,7 @@ namespace heic2jpg
         /// A list of all the writable System.Gps.* properties.
         /// Commented out properties are calculated or read-only.
         /// </summary>
-        static string[] SystemGpsProperties = {
+        static readonly string[] SystemGpsProperties = {
             //"System.GPS.Altitude",
             "System.GPS.AltitudeDenominator",
             "System.GPS.AltitudeNumerator",
