@@ -26,8 +26,6 @@ namespace heic2jpg
         {
             try
             {
-                if (!System.IO.Path.IsPathRooted(filename))
-                    filename = System.IO.Path.GetFullPath(filename);
                 filename = System.IO.Path.GetFullPath(filename);
                 var inputFile = await Windows.Storage.StorageFile.GetFileFromPathAsync(filename);
                 using (var stream = await inputFile.OpenReadAsync())
@@ -40,8 +38,9 @@ namespace heic2jpg
                         if (!decoder.DecoderInformation.FileExtensions.Contains(inputFile.FileType, StringComparer.OrdinalIgnoreCase))
                         {
                             //Rename to .JPG file
-                            var filename2 = System.IO.Path.ChangeExtension(filename, ".jpg");
-                            await inputFile.RenameAsync(System.IO.Path.ChangeExtension(filename, ".jpg"));
+                            var filename2 = System.IO.Path.ChangeExtension(System.IO.Path.GetFileName(filename), ".jpg");
+                            Console.WriteLine(filename2);
+                            await inputFile.RenameAsync(System.IO.Path.ChangeExtension(filename2, ".jpg"));
                             Console.WriteLine($"Renamed '{filename}' to '{filename2}'");
                         }
                         else
