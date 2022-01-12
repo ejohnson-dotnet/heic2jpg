@@ -23,5 +23,7 @@ You can even select multiple files, right click, and convert them JPG all at onc
 ## HEVC Codec
 You also need to install the HEVC codec from the Microsoft Store for this to work.
 
-[Install the Microsoft HEVC codec from here](https://www.microsoft.com/en-us/p/hevc-video-extensions-from-device-manufacturer/9n4wgh0z6vhq?activetab=pivot:overviewtab)
+[Install the Microsoft HEVC codec from here](https://www.microsoft.com/en-us/p/hevc-video-extensions-from-device-manufacturer/9n4wgh0z6vhq)
+
+[Microsoft Store direct link](ms-windows-store://pdp/?ProductId=9n4wgh0z6vhq)
 
