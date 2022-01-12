@@ -1,18 +1,19 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
-
+	<TargetFramework>net6.0</TargetFramework>
+	<Nullable>enable</Nullable>
+	  
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>heic2jpg</ToolCommandName>
 
     <PackageOutputPath>./nupkg</PackageOutputPath>
     <PackageId>heic2jpg</PackageId>
-    <Version>1.0.2</Version>
+    <Version>2.0.3</Version>
     <Authors>Eric Johnson</Authors>
     <Product>heic2jpg</Product>
-    <Description>.NET Core global tool to convert HEIC image files to JPG.</Description>
+    <Description>.NET 6 global tool to convert HEIC image files to JPG.</Description>
     <PackageProjectUrl>https://github.com/ejohnson-dotnet/heic2jpg</PackageProjectUrl>
     <RepositoryUrl>https://github.com/ejohnson-dotnet/heic2jpg</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -23,7 +24,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Win32.Registry" Version="4.7.0" />
-    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.18362.2005" />
+    <!--<PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.18362.2005" />-->
   </ItemGroup>
 
 </Project>
