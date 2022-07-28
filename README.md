@@ -20,6 +20,8 @@ Then simply enter the command `heic2jpg.exe`.  This will then add an option "Con
 Simply browse to any .HEIC image file, right click on it, select the option "Convert to JPG" and a new JPG file with the same name will be created in the same folder.
 You can even select multiple files, right click, and convert them JPG all at once. 
 
+You can also invoke the tool from command line by entering `heic2jpg <file> [<file>...] ` where `file` is a file name, wildcard or full path. The tool will convert all files to JPG.
+
 ## HEVC Codec
 You also need to install the HEVC codec from the Microsoft Store for this to work.
 
