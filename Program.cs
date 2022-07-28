@@ -26,96 +26,121 @@ namespace heic2jpg
 
             foreach (var file in args)
             {
-                await ConvertFile(file);
+                try
+                {
+                    await ConvertFile(file);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error processing file or path '{file}': {ex.Message}");
+                    System.Diagnostics.Trace.WriteLine($"Error processing file or path '{file}': {ex.ToString()}");
+                }
             }
         }
 
-        static async Task ConvertFile(string filename)
+        static async Task ConvertFile(string pathOrFile)
         {
-            try
+
+            await Task.CompletedTask;
+
+            var uncPath = System.IO.Path.GetFullPath(pathOrFile);
+            var filenames = System.IO.Directory.GetFiles(
+                System.IO.Path.GetDirectoryName(uncPath) ?? throw new InvalidOperationException(),
+                System.IO.Path.GetFileName(uncPath));
+            
+            foreach (var filename in filenames)
             {
-                await Task.CompletedTask;
-
-                filename = System.IO.Path.GetFullPath(filename);
-                var imagingFactory = new WIC.WICImagingFactory();
-                var decoder = imagingFactory.CreateDecoderFromFilename(filename, Guid.Empty, WIC.StreamAccessMode.GENERIC_READ,
-                    WIC.WICDecodeOptions.WICDecodeMetadataCacheOnLoad);
-
-                //ShowMetadata(decoder.GetFrame(0));
-                if (decoder.GetDecoderInfo().GetCLSID() == WIC.Decoder.Jpeg)
+                try
                 {
-                    Console.WriteLine($"'{filename}' is already a JPEG file.");
-                    return;
-                }
+                    var imagingFactory = new WIC.WICImagingFactory();
+                    var decoder = imagingFactory.CreateDecoderFromFilename(filename, Guid.Empty,
+                        WIC.StreamAccessMode.GENERIC_READ,
+                        WIC.WICDecodeOptions.WICDecodeMetadataCacheOnLoad);
 
-                var output = imagingFactory.CreateStream();
-                output.InitializeFromFilename(System.IO.Path.ChangeExtension(filename, ".jpg"), WIC.StreamAccessMode.GENERIC_WRITE);
-                var encoder = imagingFactory.CreateEncoder(ContainerFormat.Jpeg);
-                encoder.Initialize(output, WICBitmapEncoderCacheOption.WICBitmapEncoderNoCache);
-
-                for (int i = 0; i < decoder.GetFrameCount(); i++)
-                {
-                    var frame = decoder.GetFrame(i);
-                    encoder.CreateNewFrame(out var frameJpg, null);
-                    frameJpg.Initialize(null);
-                    frameJpg.SetSize(frame.GetSize());
-                    frameJpg.SetResolution(frame.GetResolution());
-                    frameJpg.SetPixelFormat(frame.GetPixelFormat());
-                    
-
-                    var reader = frame.AsMetadataBlockReader();
-                    var count = reader.GetCount();
-
-                    //Get the EXIF data from the original photo.
-                    var metadataReader = frame.GetMetadataQueryReader();
-                    var metadataWriter = frameJpg.GetMetadataQueryWriter();
-                    foreach (var name in metadataReader.GetNamesRecursive())
+                    //ShowMetadata(decoder.GetFrame(0));
+                    if (decoder.GetDecoderInfo().GetCLSID() == WIC.Decoder.Jpeg)
                     {
-                        try {
-                            var val = metadataReader.GetMetadataByName(name);
-                            if (name.StartsWith("/ifd/"))
-                                metadataWriter.SetMetadataByName("/app1" + name.Replace("/ifd/{ushort=34665}/", "/ifd/exif/").Replace("/ifd/{ushort=34853}/", "/ifd/gps/"), val);
-                            else if (name.StartsWith("/xmp/"))
-                                metadataWriter.SetMetadataByName(name, val);
-                        }
-                        catch {
-                            System.Diagnostics.Trace.WriteLine($"Error setting '{name}'");
-                        }
-                    }
-                    var photoProperties = SystemProperties.Concat(SystemPhotoProperties.Concat(SystemGpsProperties));
-                    foreach (var photoProp in photoProperties)
-                    {
-                        var action = "getting";
-                        try
-                        {
-                            var val = metadataReader.GetMetadataByName(photoProp);
-                            //System.Diagnostics.Trace.WriteLine($"{photoProp} = {val}");
-                            action = "setting";
-                            metadataWriter.SetMetadataByName(photoProp, val);
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Trace.WriteLine($"Error {action} '{photoProp}': " + ex.Message);
-                        }
+                        Console.WriteLine($"'{filename}' is already a JPEG file.");
+                        return;
                     }
 
-                    frameJpg.WriteSource(frame);
+                    var output = imagingFactory.CreateStream();
+                    output.InitializeFromFilename(System.IO.Path.ChangeExtension(filename, ".jpg"),
+                        WIC.StreamAccessMode.GENERIC_WRITE);
+                    var encoder = imagingFactory.CreateEncoder(ContainerFormat.Jpeg);
+                    encoder.Initialize(output, WICBitmapEncoderCacheOption.WICBitmapEncoderNoCache);
 
-                    frameJpg.Commit();
+                    for (int i = 0; i < decoder.GetFrameCount(); i++)
+                    {
+                        var frame = decoder.GetFrame(i);
+                        encoder.CreateNewFrame(out var frameJpg, null);
+                        frameJpg.Initialize(null);
+                        frameJpg.SetSize(frame.GetSize());
+                        frameJpg.SetResolution(frame.GetResolution());
+                        frameJpg.SetPixelFormat(frame.GetPixelFormat());
 
-                    frame = null;
-                    frameJpg = null;
+
+                        var reader = frame.AsMetadataBlockReader();
+                        var count = reader.GetCount();
+
+                        //Get the EXIF data from the original photo.
+                        var metadataReader = frame.GetMetadataQueryReader();
+                        var metadataWriter = frameJpg.GetMetadataQueryWriter();
+                        foreach (var name in metadataReader.GetNamesRecursive())
+                        {
+                            try
+                            {
+                                var val = metadataReader.GetMetadataByName(name);
+                                if (name.StartsWith("/ifd/"))
+                                    metadataWriter.SetMetadataByName(
+                                        "/app1" + name.Replace("/ifd/{ushort=34665}/", "/ifd/exif/")
+                                            .Replace("/ifd/{ushort=34853}/", "/ifd/gps/"), val);
+                                else if (name.StartsWith("/xmp/"))
+                                    metadataWriter.SetMetadataByName(name, val);
+                            }
+                            catch
+                            {
+                                System.Diagnostics.Trace.WriteLine($"Error setting '{name}'");
+                            }
+                        }
+
+                        var photoProperties =
+                            SystemProperties.Concat(SystemPhotoProperties.Concat(SystemGpsProperties));
+                        foreach (var photoProp in photoProperties)
+                        {
+                            var action = "getting";
+                            try
+                            {
+                                var val = metadataReader.GetMetadataByName(photoProp);
+                                //System.Diagnostics.Trace.WriteLine($"{photoProp} = {val}");
+                                action = "setting";
+                                metadataWriter.SetMetadataByName(photoProp, val);
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Trace.WriteLine($"Error {action} '{photoProp}': " + ex.Message);
+                            }
+                        }
+
+                        frameJpg.WriteSource(frame);
+
+                        frameJpg.Commit();
+
+                        frame = null;
+                        frameJpg = null;
+                    }
+
+                    encoder.Commit();
+                    output.Commit(WIC.STGC.STGC_DEFAULT);
+                    encoder = null;
+                    output = null;
+
                 }
-                encoder.Commit();
-                output.Commit(WIC.STGC.STGC_DEFAULT);
-                encoder = null;
-                output = null;
-
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error converting file '{filename}': {ex.Message}");
-                System.Diagnostics.Trace.WriteLine($"Error converting file '{filename}': {ex.ToString()}");
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error converting file '{filename}': {ex.Message}");
+                    System.Diagnostics.Trace.WriteLine($"Error converting file '{filename}': {ex.ToString()}");
+                }
             }
         }
 
@@ -132,9 +157,9 @@ namespace heic2jpg
         static object GetValue(object val)
         {
             if (val is WICBlob)
-                return BitConverter.ToString(((WICBlob)val).Bytes);
+                return BitConverter.ToString(((WICBlob) val).Bytes);
             if (val is Array)
-                return "[" + string.Join("][", ((Array)val).Cast<object>()) + "]";
+                return "[" + string.Join("][", ((Array) val).Cast<object>()) + "]";
             return val;
         }
 
@@ -144,9 +169,11 @@ namespace heic2jpg
             try
             {
                 var path = Environment.ProcessPath; // System.Reflection.Assembly.GetEntryAssembly()?.Location;
-                var key = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey("SystemFileAssociations\\.heic\\Shell\\Convert to JPG");
+                var key = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(
+                    "SystemFileAssociations\\.heic\\Shell\\Convert to JPG");
                 key.SetValue("NeverDefault", "", Microsoft.Win32.RegistryValueKind.String);
-                key = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey("SystemFileAssociations\\.heic\\Shell\\Convert to JPG\\command");
+                key = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(
+                    "SystemFileAssociations\\.heic\\Shell\\Convert to JPG\\command");
                 key.SetValue(null, $"\"{path}\" \"%1\"", Microsoft.Win32.RegistryValueKind.String);
 
                 //var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\Classes\\.heic", true);
@@ -173,7 +200,8 @@ namespace heic2jpg
         /// A list of all System photo metadata properties
         /// https://docs.microsoft.com/en-us/windows/win32/wic/system
         /// </summary>
-        static string[] SystemProperties = {
+        static string[] SystemProperties =
+        {
             "System.ApplicationName",
             "System.Author",
             "System.Comment",
@@ -190,7 +218,8 @@ namespace heic2jpg
         /// A list of all the writable System.Photo.* properties.
         /// Commented out properties are calculated or read-only.
         /// </summary>
-        static string[] SystemPhotoProperties = {
+        static string[] SystemPhotoProperties =
+        {
             //"System.Photo.Aperture",
             "System.Photo.ApertureDenominator",
             "System.Photo.ApertureNumerator",
@@ -282,7 +311,8 @@ namespace heic2jpg
         /// A list of all the writable System.Gps.* properties.
         /// Commented out properties are calculated or read-only.
         /// </summary>
-        static string[] SystemGpsProperties = {
+        static string[] SystemGpsProperties =
+        {
             //"System.GPS.Altitude",
             "System.GPS.AltitudeDenominator",
             "System.GPS.AltitudeNumerator",
