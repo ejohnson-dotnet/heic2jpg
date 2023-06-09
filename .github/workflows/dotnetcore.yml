@@ -1,7 +1,9 @@
 name: .NET Core
 
 on:
-  create
+  push:
+    tags: 
+      - '*'
 
 jobs:
   build:
