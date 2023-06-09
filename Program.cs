@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using System.Linq;
+using WIC;
 
 namespace heic2jpg
 {
@@ -8,7 +9,14 @@ namespace heic2jpg
     {
         static async Task Main(string[] args)
         {
-            AddRightClickMenu();
+            if (!OperatingSystem.IsWindows())
+            {
+                Console.WriteLine("Sorry this tool is not supported on this operating system.");
+                return;
+            }
+
+            if (OperatingSystem.IsWindows())
+                AddRightClickMenu();
 
             if (args == null || args.Length == 0)
             {
@@ -26,58 +34,82 @@ namespace heic2jpg
         {
             try
             {
-                if (!System.IO.Path.IsPathRooted(filename))
-                    filename = System.IO.Path.GetFullPath(filename);
+                await Task.CompletedTask;
+
                 filename = System.IO.Path.GetFullPath(filename);
-                var inputFile = await Windows.Storage.StorageFile.GetFileFromPathAsync(filename);
-                using (var stream = await inputFile.OpenReadAsync())
+                var imagingFactory = new WIC.WICImagingFactory();
+                var decoder = imagingFactory.CreateDecoderFromFilename(filename, Guid.Empty, WIC.StreamAccessMode.GENERIC_READ,
+                    WIC.WICDecodeOptions.WICDecodeMetadataCacheOnLoad);
+
+                //ShowMetadata(decoder.GetFrame(0));
+                if (decoder.GetDecoderInfo().GetCLSID() == WIC.Decoder.Jpeg)
                 {
-                    var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
+                    Console.WriteLine($"'{filename}' is already a JPEG file.");
+                    return;
+                }
 
-                    if (decoder.DecoderInformation.CodecId == Windows.Graphics.Imaging.BitmapDecoder.JpegDecoderId)
-                    {
-                        // Already JPEG file
-                        if (!decoder.DecoderInformation.FileExtensions.Contains(inputFile.FileType, StringComparer.OrdinalIgnoreCase))
-                        {
-                            //Rename to .JPG file
-                            var filename2 = System.IO.Path.ChangeExtension(filename, ".jpg");
-                            await inputFile.RenameAsync(System.IO.Path.ChangeExtension(filename, ".jpg"));
-                            Console.WriteLine($"Renamed '{filename}' to '{filename2}'");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"'{filename}' is already a JPEG file.");
-                        }
-                        return;
-                    }
+                var output = imagingFactory.CreateStream();
+                output.InitializeFromFilename(System.IO.Path.ChangeExtension(filename, ".jpg"), WIC.StreamAccessMode.GENERIC_WRITE);
+                var encoder = imagingFactory.CreateEncoder(ContainerFormat.Jpeg);
+                encoder.Initialize(output, WICBitmapEncoderCacheOption.WICBitmapEncoderNoCache);
 
-                    var bitmap = await decoder.GetSoftwareBitmapAsync();
-                    var outputFilename = System.IO.Path.GetFileName(System.IO.Path.ChangeExtension(filename, ".jpg"));
-                    var outputFile = await (await inputFile.GetParentAsync())
-                        .CreateFileAsync(outputFilename, Windows.Storage.CreationCollisionOption.ReplaceExisting);
-                    using (var outputStream = await outputFile.OpenAsync(Windows.Storage.FileAccessMode.ReadWrite))
-                    {
-                        var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.JpegEncoderId, outputStream);
-                        encoder.SetSoftwareBitmap(bitmap);
-                        encoder.IsThumbnailGenerated = true;
+                for (int i = 0; i < decoder.GetFrameCount(); i++)
+                {
+                    var frame = decoder.GetFrame(i);
+                    encoder.CreateNewFrame(out var frameJpg, null);
+                    frameJpg.Initialize(null);
+                    frameJpg.SetSize(frame.GetSize());
+                    frameJpg.SetResolution(frame.GetResolution());
+                    frameJpg.SetPixelFormat(frame.GetPixelFormat());
+                    
 
-                        await encoder.FlushAsync();
-                    }
-
-                    // Copy EXIF data.
+                    var reader = frame.AsMetadataBlockReader();
+                    var count = reader.GetCount();
 
                     //Get the EXIF data from the original photo.
-                    var photoProperties = await inputFile.Properties.RetrievePropertiesAsync(SystemPhotoProperties.Union(SystemGpsProperties));
-
-                    foreach (var p in photoProperties.OrderBy(k => k.Key))
+                    var metadataReader = frame.GetMetadataQueryReader();
+                    var metadataWriter = frameJpg.GetMetadataQueryWriter();
+                    foreach (var name in metadataReader.GetNamesRecursive())
                     {
-                        //Console.WriteLine($"{p.Key}: {p.Value}");
-                        System.Diagnostics.Trace.WriteLine($"{p.Key}: {(p.Value is Array ? string.Join(",", ((Array)p.Value).Cast<object>()) : p.Value)}");
+                        try {
+                            var val = metadataReader.GetMetadataByName(name);
+                            if (name.StartsWith("/ifd/"))
+                                metadataWriter.SetMetadataByName("/app1" + name.Replace("/ifd/{ushort=34665}/", "/ifd/exif/").Replace("/ifd/{ushort=34853}/", "/ifd/gps/"), val);
+                            else if (name.StartsWith("/xmp/"))
+                                metadataWriter.SetMetadataByName(name, val);
+                        }
+                        catch {
+                            System.Diagnostics.Trace.WriteLine($"Error setting '{name}'");
+                        }
+                    }
+                    var photoProperties = SystemProperties.Concat(SystemPhotoProperties.Concat(SystemGpsProperties));
+                    foreach (var photoProp in photoProperties)
+                    {
+                        var action = "getting";
+                        try
+                        {
+                            var val = metadataReader.GetMetadataByName(photoProp);
+                            //System.Diagnostics.Trace.WriteLine($"{photoProp} = {val}");
+                            action = "setting";
+                            metadataWriter.SetMetadataByName(photoProp, val);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Trace.WriteLine($"Error {action} '{photoProp}': " + ex.Message);
+                        }
                     }
 
+                    frameJpg.WriteSource(frame);
 
-                    await outputFile.Properties.SavePropertiesAsync(photoProperties);
+                    frameJpg.Commit();
+
+                    frame = null;
+                    frameJpg = null;
                 }
+                encoder.Commit();
+                output.Commit(WIC.STGC.STGC_DEFAULT);
+                encoder = null;
+                output = null;
 
             }
             catch (Exception ex)
@@ -87,28 +119,72 @@ namespace heic2jpg
             }
         }
 
+        static void ShowMetadata(IWICBitmapFrameDecode frame)
+        {
+            var metadataReader = frame.GetMetadataQueryReader();
+            foreach (var name in metadataReader.GetNamesRecursive())
+            {
+                var val = metadataReader.GetMetadataByName(name);
+                System.Diagnostics.Trace.WriteLine($"{name}: {GetValue(val)}");
+            }
+        }
+
+        static object GetValue(object val)
+        {
+            if (val is WICBlob)
+                return BitConverter.ToString(((WICBlob)val).Bytes);
+            if (val is Array)
+                return "[" + string.Join("][", ((Array)val).Cast<object>()) + "]";
+            return val;
+        }
+
+        [System.Runtime.Versioning.SupportedOSPlatform("windows")]
         static void AddRightClickMenu()
         {
             try
             {
-                var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\Classes\\.heic", true);
-                var heicClass = (string)key.GetValue(null, string.Empty);
-                if (string.IsNullOrEmpty(heicClass))
-                {
-                    heicClass = "heicfile";
-                    key.SetValue(null, heicClass, Microsoft.Win32.RegistryValueKind.String);
-                }
-                key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\Classes\\.heic\\OpenWithProgids", true);
-                key.SetValue(heicClass, "", Microsoft.Win32.RegistryValueKind.String);
+                var path = Environment.ProcessPath; // System.Reflection.Assembly.GetEntryAssembly()?.Location;
+                var key = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey("SystemFileAssociations\\.heic\\Shell\\Convert to JPG");
+                key.SetValue("NeverDefault", "", Microsoft.Win32.RegistryValueKind.String);
+                key = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey("SystemFileAssociations\\.heic\\Shell\\Convert to JPG\\command");
+                key.SetValue(null, $"\"{path}\" \"%1\"", Microsoft.Win32.RegistryValueKind.String);
 
-                key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey($"Software\\Classes\\{heicClass}\\Shell\\Convert to jpg\\command", true);
-                key.SetValue(null, "\"heic2jpg.exe\" \"%1\"", Microsoft.Win32.RegistryValueKind.String);
+                //var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\Classes\\.heic", true);
+                //var heicClass = (string?)key.GetValue(null, string.Empty);
+                //if (string.IsNullOrEmpty(heicClass))
+                //{
+                //    heicClass = "heicfile";
+                //    key.SetValue(null, heicClass, Microsoft.Win32.RegistryValueKind.String);
+                //}
+                //key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\Classes\\.heic\\OpenWithProgids", true);
+                //key.SetValue(heicClass, "", Microsoft.Win32.RegistryValueKind.String);
+
+                //key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey($"Software\\Classes\\{heicClass}\\Shell\\Convert to jpg\\command", true);
+                //key.SetValue(null, "\"heic2jpg.exe\" \"%1\"", Microsoft.Win32.RegistryValueKind.String);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Trace.WriteLine($"Error adding registry entries: {ex.Message}");
             }
         }
+
+
+        /// <summary>
+        /// A list of all System photo metadata properties
+        /// https://docs.microsoft.com/en-us/windows/win32/wic/system
+        /// </summary>
+        static string[] SystemProperties = {
+            "System.ApplicationName",
+            "System.Author",
+            "System.Comment",
+            "System.Copyright",
+            "System.DateAcquired",
+            "System.Keywords",
+            "System.Rating",
+            "System.SimpleRating",
+            "System.Subject",
+            "System.Title"
+        };
 
         /// <summary>
         /// A list of all the writable System.Photo.* properties.
@@ -178,7 +254,7 @@ namespace heic2jpg
             "System.Photo.MaxApertureNumerator",
             "System.Photo.MeteringMode",
             //"System.Photo.MeteringModeText",
-            //"System.Photo.Orientation",
+            "System.Photo.Orientation",
             //"System.Photo.OrientationText",
             //"System.Photo.PeopleNames",
             //"System.Photo.PhotometricInterpretation",
