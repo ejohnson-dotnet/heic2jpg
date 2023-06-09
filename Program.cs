@@ -8,6 +8,8 @@ namespace heic2jpg
     {
         static async Task Main(string[] args)
         {
+            AddRightClickMenu();
+
             if (args == null || args.Length == 0)
             {
                 Console.WriteLine("Usage: heic2jpg [filename]");
@@ -58,7 +60,7 @@ namespace heic2jpg
                         var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.JpegEncoderId, outputStream);
                         encoder.SetSoftwareBitmap(bitmap);
                         encoder.IsThumbnailGenerated = true;
-                        
+
                         await encoder.FlushAsync();
                     }
 
@@ -73,7 +75,7 @@ namespace heic2jpg
                         System.Diagnostics.Trace.WriteLine($"{p.Key}: {(p.Value is Array ? string.Join(",", ((Array)p.Value).Cast<object>()) : p.Value)}");
                     }
 
-                    
+
                     await outputFile.Properties.SavePropertiesAsync(photoProperties);
                 }
 
@@ -85,8 +87,31 @@ namespace heic2jpg
             }
         }
 
+        static void AddRightClickMenu()
+        {
+            try
+            {
+                var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\Classes\\.heic", true);
+                var heicClass = (string)key.GetValue(null, string.Empty);
+                if (string.IsNullOrEmpty(heicClass))
+                {
+                    heicClass = "heicfile";
+                    key.SetValue(null, heicClass, Microsoft.Win32.RegistryValueKind.String);
+                }
+                key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\Classes\\.heic\\OpenWithProgids", true);
+                key.SetValue(heicClass, "", Microsoft.Win32.RegistryValueKind.String);
+
+                key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey($"Software\\Classes\\{heicClass}\\Shell\\Convert to jpg\\command", true);
+                key.SetValue(null, "\"heic2jpg.exe\" \"%1\"", Microsoft.Win32.RegistryValueKind.String);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"Error adding registry entries: {ex.Message}");
+            }
+        }
+
         /// <summary>
-        /// A list of all the writable System.Photo.* properties.  
+        /// A list of all the writable System.Photo.* properties.
         /// Commented out properties are calculated or read-only.
         /// </summary>
         static string[] SystemPhotoProperties = {
