@@ -25,5 +25,6 @@ You also need to install the HEVC codec from the Microsoft Store for this to wor
 
 [Install the Microsoft HEVC codec from here](https://www.microsoft.com/en-us/p/hevc-video-extensions-from-device-manufacturer/9n4wgh0z6vhq)
 
-[Microsoft Store direct link](ms-windows-store://pdp/?ProductId=9n4wgh0z6vhq)
+<a href="ms-windows-store://pdp/?ProductId=9n4wgh0z6vhq">Microsoft Store direct link</a>
+
 
