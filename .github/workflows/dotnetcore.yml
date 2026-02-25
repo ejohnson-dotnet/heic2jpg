@@ -15,7 +15,7 @@ jobs:
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: '6.0.101'
+        dotnet-version: '8.0.406'
         include-prerelease: true
       env:
         NUGET_AUTH_TOKEN: ${{secrets.NUGET_API_KEY}}

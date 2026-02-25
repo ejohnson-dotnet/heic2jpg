@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
 using WIC;
@@ -20,13 +21,58 @@ namespace heic2jpg
 
             if (args == null || args.Length == 0)
             {
-                Console.WriteLine("Usage: heic2jpg [filename]");
+                await ShowUsageAsync();
                 return;
             }
 
             foreach (var file in args)
             {
-                await ConvertFile(file);
+                await foreach (var expandedFile in ExpandWildcards(file))
+                {
+                    await ConvertFile(expandedFile);
+                }
+            }
+        }
+
+        static async IAsyncEnumerable<string> ExpandWildcards(string pattern)
+        {
+            await Task.CompletedTask;
+
+            if (pattern.Contains('*') || pattern.Contains('?'))
+            {
+                var directory = System.IO.Path.GetDirectoryName(pattern);
+                if (string.IsNullOrEmpty(directory))
+                {
+                    directory = Environment.CurrentDirectory;
+                }
+
+                var filePattern = System.IO.Path.GetFileName(pattern);
+
+                string[] matchingFiles;
+                try
+                {
+                    matchingFiles = System.IO.Directory.GetFiles(directory, filePattern);
+                }
+                catch (System.IO.DirectoryNotFoundException)
+                {
+                    Console.WriteLine($"Directory not found: '{directory}'");
+                    yield break;
+                }
+
+                if (matchingFiles.Length == 0)
+                {
+                    Console.WriteLine($"No files matching '{pattern}' were found.");
+                    yield break;
+                }
+
+                foreach (var file in matchingFiles)
+                {
+                    yield return file;
+                }
+            }
+            else
+            {
+                yield return pattern;
             }
         }
 
@@ -166,6 +212,46 @@ namespace heic2jpg
             {
                 System.Diagnostics.Trace.WriteLine($"Error adding registry entries: {ex.Message}");
             }
+        }
+
+
+        static async Task ShowUsageAsync()
+        {
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            var exeName = System.IO.Path.GetFileNameWithoutExtension(Environment.ProcessPath) ?? "heic2jpg";
+
+            Console.WriteLine();
+            Console.WriteLine($"{exeName} v{version}");
+            Console.WriteLine("Converts HEIC/HEIF images to JPEG format while preserving metadata.");
+            Console.WriteLine();
+            Console.WriteLine("Usage:");
+            Console.WriteLine($"  {exeName} <file1> [file2] [file3] ...");
+            Console.WriteLine();
+            Console.WriteLine("Examples:");
+            Console.WriteLine($"  {exeName} photo.heic              Convert a single file");
+            Console.WriteLine($"  {exeName} *.heic                  Convert all HEIC files in current directory");
+            Console.WriteLine($"  {exeName} photo1.heic photo2.heic Convert multiple files");
+            Console.WriteLine();
+            Console.WriteLine("Options:");
+            Console.WriteLine("  Running without arguments installs the right-click context menu");
+            Console.WriteLine("  for .heic files (requires administrator permissions).");
+            Console.WriteLine();
+
+            //// Offer to convert files in current directory
+            //var heicFiles = System.IO.Directory.GetFiles(Environment.CurrentDirectory, "*.heic");
+            //if (heicFiles.Length > 0)
+            //{
+            //    Console.WriteLine($"Found {heicFiles.Length} HEIC file(s) in the current directory.");
+            //    Console.Write("Convert them now? [y/N]: ");
+            //    var response = Console.ReadLine();
+            //    if (response?.Trim().Equals("y", StringComparison.OrdinalIgnoreCase) == true)
+            //    {
+            //        foreach (var file in heicFiles)
+            //        {
+            //            await ConvertFile(file);
+            //        }
+            //    }
+            //}
         }
 
 

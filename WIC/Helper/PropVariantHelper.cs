@@ -216,6 +216,8 @@ namespace WIC
         {
             return variant.Type switch
             {
+                VARTYPE.VT_EMPTY => null!,
+                VARTYPE.VT_NULL => null!,
                 VARTYPE.VT_BOOL => variant.UI2 != 0,
                 VARTYPE.VT_UI1 => variant.UI1,
                 VARTYPE.VT_UI2 => variant.UI2,
@@ -225,12 +227,18 @@ namespace WIC
                 VARTYPE.VT_I2 => variant.I2,
                 VARTYPE.VT_I4 => variant.I4,
                 VARTYPE.VT_I8 => variant.I8,
+                VARTYPE.VT_INT => variant.I4,
+                VARTYPE.VT_UINT => variant.UI4,
                 VARTYPE.VT_LPSTR => Marshal.PtrToStringAnsi(variant.Ptr)!,
                 VARTYPE.VT_LPWSTR => Marshal.PtrToStringUni(variant.Ptr)!,
                 VARTYPE.VT_BSTR => Marshal.PtrToStringBSTR(variant.Ptr),
                 VARTYPE.VT_R4 => variant.R4,
                 VARTYPE.VT_R8 => variant.R8,
+                VARTYPE.VT_CY => variant.I8 / 10000m,
+                VARTYPE.VT_DATE => DateTime.FromOADate(variant.R8),
                 VARTYPE.VT_FILETIME => DateTime.FromFileTime(variant.I8),
+                VARTYPE.VT_CLSID => Marshal.PtrToStructure<Guid>(variant.Ptr),
+                VARTYPE.VT_ERROR => variant.I4,
                 VARTYPE.VT_UNKNOWN => Marshal.GetObjectForIUnknown(variant.Ptr),
                 VARTYPE.VT_STREAM => Marshal.GetObjectForIUnknown(variant.Ptr),
                 VARTYPE.VT_STORAGE => Marshal.GetObjectForIUnknown(variant.Ptr),
